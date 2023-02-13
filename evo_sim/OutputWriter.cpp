@@ -399,7 +399,7 @@ void EndPopWriter::finalAction(CList& clone_list){
 }
 
 void EndPopTypesWriter::finalAction(CList& clone_list){
-    outfile << sim_number;
+    outfile << sim_number << endl;
     for (int i=0; i<clone_list.getMaxTypes(); i++){
         if (clone_list.hasCellType(i)){
              outfile << i << ", " << clone_list.getTypeByIndex(i)->getNumCells() << endl;
