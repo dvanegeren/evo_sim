@@ -87,7 +87,6 @@ public:
 class MotherDaughterWriter: public DuringOutputWriter{
 private:
     ofstream outfile;
-    int timestep;
     int index;
 public:
     MotherDaughterWriter(string ofile);
@@ -161,6 +160,20 @@ public:
     int getTypeIndex(){
         return index;
     }
+};
+
+class AllTypesWideWriter: public DuringOutputWriter{
+private:
+    ofstream outfile;
+    void write_pop_line(ofstream& outfile, CList& clone_list);
+public:
+    ~AllTypesWideWriter();
+    AllTypesWideWriter(string ofile, int period, int sim);
+    AllTypesWideWriter(string ofile);
+    void finalAction(CList& clone_list);
+    void duringSimAction(CList& clone_list);
+    void beginAction(CList& clone_list);
+    bool readLine(vector<string>& parsed_line);
 };
 
 class MeanFitWriter: public DuringOutputWriter{

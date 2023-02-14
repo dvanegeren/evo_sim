@@ -164,6 +164,38 @@ void MotherDaughterWriter::duringSimAction(CList &clone_list){
     }
 }
 
+void AllTypesWideWriter::write_pop_line(ofstream& outfile, CList& clone_list){
+    outfile << clone_list.getCurrTime();
+    for (int i=0; i<clone_list.getMaxTypes(); i++){
+        if (clone_list.hasCellType(i)){
+            outfile << ", " << clone_list.getTypeByIndex(i)->getNumCells();
+        }
+        else {
+            outfile << ", " << 0;
+        }
+    }
+    outfile << endl;
+}
+
+void AllTypesWideWriter::beginAction(CList& clone_list){
+    string ofile_middle = "all_types_wide_"+to_string(sim_number);
+    outfile.open(ofile_loc + ofile_middle + ".oevo", ios::app);
+    write_pop_line(outfile, clone_list);
+}
+
+void AllTypesWideWriter::duringSimAction(CList &clone_list){
+    if (shouldWrite(clone_list)){
+        write_pop_line(outfile, clone_list);
+    }
+}
+
+void AllTypesWideWriter::finalAction(CList& clone_list){
+    write_pop_line(outfile, clone_list);
+    outfile.flush();
+    outfile.close();
+    resetWriter();
+}
+
 void CountStepWriter::beginAction(CList& clone_list){
     string ofile_middle = "count_step_sim_"+to_string(sim_number);
     outfile.open(ofile_loc + ofile_middle + ofile_name, ios::app);
@@ -242,6 +274,12 @@ AllTypesWriter::AllTypesWriter(string ofile, int period): DuringOutputWriter(ofi
 AllTypesWriter::AllTypesWriter(string ofile): DuringOutputWriter(ofile){
     ofile_name = "all_types";
 }
+
+AllTypesWideWriter::AllTypesWideWriter(string ofile, int period, int sim): DuringOutputWriter(ofile, period){
+    sim_number = sim;
+}
+
+AllTypesWideWriter::AllTypesWideWriter(string ofile): DuringOutputWriter(ofile){}
 
 TunnelWriter::TunnelWriter(string ofile): DuringOutputWriter(ofile){
     writing_period = 0;
@@ -333,6 +371,19 @@ void AllTypesWriter::finalAction(CList& clone_list){
 }
 
 bool AllTypesWriter::readLine(vector<string>& parsed_line){
+    if (parsed_line.size() != 1){
+        return false;
+    }
+    try{
+        writing_period =stoi(parsed_line[0]);
+    }
+    catch (...){
+        return false;
+    }
+    return true;
+}
+
+bool AllTypesWideWriter::readLine(vector<string>& parsed_line){
     if (parsed_line.size() != 1){
         return false;
     }
@@ -557,6 +608,11 @@ MeanFitWriter::~MeanFitWriter(){
 }
 
 TunnelWriter::~TunnelWriter(){
+    outfile.flush();
+    outfile.close();
+}
+
+AllTypesWideWriter::~AllTypesWideWriter(){
     outfile.flush();
     outfile.close();
 }

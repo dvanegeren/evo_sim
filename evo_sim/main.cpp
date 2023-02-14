@@ -656,6 +656,9 @@ bool SimParams::make_writer(vector<string> &parsed_line){
     else if (type == "MotherDaughter"){
         new_writer = new MotherDaughterWriter(*outfolder);
     }
+    else if (type == "AllTypesWide"){
+        new_writer = new AllTypesWideWriter(*outfolder);
+    }
     else if (type == "MeanFit"){
         new_writer = new MeanFitWriter(*outfolder);
     }
