@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <chrono>
 #include <cstdlib>
+#include <algorithm>
 using namespace std;
 
 CList::CList(double death, MutationHandler& mut_handle, int max){
