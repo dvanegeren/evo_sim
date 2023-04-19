@@ -13,10 +13,9 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include "CList.h"
 
 using namespace std;
-
-class CList;
 
 class OutputWriter{
     /* writes results to files. can write/act after every timestep (call to CList::advance()) or only after each simulation instance.
@@ -33,21 +32,20 @@ public:
     void setSimNumber(int new_num){
         sim_number = new_num;
     }
-    OutputWriter();
+    OutputWriter(string ofile);
+    virtual ~OutputWriter() = 0;
 };
 
-class FinalOutputWriter: public OutputWriter{
+class FinalOutputWriter: public virtual OutputWriter{
     /* only writes before or after the simulation is run. all writes are thread safe IF AND ONLY IF the write buffer is flushed at the end of each writing method.
      */
 public:
     FinalOutputWriter(string ofile);
-    virtual void finalAction(CList& clone_list) = 0;
+    virtual ~FinalOutputWriter() = 0;
     void duringSimAction(CList& clone_list){};
-    virtual void beginAction(CList& clone_list) = 0;
-    virtual bool readLine(vector<string>& parsed_line) = 0;
 };
 
-class DuringOutputWriter: public OutputWriter{
+class DuringOutputWriter: public virtual OutputWriter{
     /* can update and/or write after every simulation timestep.
      SHOULD NOT write to files shared between multiple trials during the simulation- NOT thread safe. Use a simulation specific file for this purpose.
      */
@@ -61,17 +59,40 @@ protected:
 public:
     DuringOutputWriter(string ofile, int period);
     DuringOutputWriter(string ofile);
-    virtual void finalAction(CList& clone_list) = 0;
-    virtual void duringSimAction(CList& clone_list) = 0;
-    virtual void beginAction(CList& clone_list) = 0;
-    virtual bool readLine(vector<string>& parsed_line) = 0;
+    virtual ~DuringOutputWriter() = 0;
 };
 
-class CountStepWriter: public DuringOutputWriter{
+class IndexedWriter: public virtual OutputWriter{
+protected:
+    int index;
+public:
+    IndexedWriter(string ofile);
+    IndexedWriter(string ofile, int i);
+    virtual ~IndexedWriter() = 0;
+    int getTypeIndex(){
+        return index;
+    }
+};
+
+template <typename WRITER_CLASS>
+class AllTypesWriter: public OutputWriter {
+private:
+    vector<WRITER_CLASS *> writers;
+    vector<string> params_line;
+    void addWriter(CList& clone_list, WRITER_CLASS& new_writer, int idx);
+public:
+    ~AllTypesWriter();
+    AllTypesWriter(string ofile);
+    void finalAction(CList& clone_list);
+    void duringSimAction(CList& clone_list);
+    void beginAction(CList& clone_list);
+    bool readLine(vector<string>& parsed_line);
+};
+
+class CountStepWriter: public IndexedWriter, public DuringOutputWriter{
 private:
     ofstream outfile;
     int timestep;
-    int index;
 public:
     CountStepWriter(string ofile);
     ~CountStepWriter();
@@ -84,10 +105,9 @@ public:
     }
 };
 
-class MotherDaughterWriter: public DuringOutputWriter{
+class MotherDaughterWriter: public IndexedWriter, public DuringOutputWriter{
 private:
     ofstream outfile;
-    int index;
 public:
     MotherDaughterWriter(string ofile);
     ~MotherDaughterWriter();
@@ -100,10 +120,9 @@ public:
     }
 };
 
-class NumMutationsWriter: public DuringOutputWriter{
+class NumMutationsWriter: public IndexedWriter, public DuringOutputWriter{
 private:
     ofstream outfile;
-    int index;
 public:
     NumMutationsWriter(string ofile);
     ~NumMutationsWriter();
@@ -127,9 +146,8 @@ public:
     bool readLine(vector<string>& parsed_line){return true;}
 };
 
-class CellCountWriter: public DuringOutputWriter{
+class CellCountWriter: public IndexedWriter, public DuringOutputWriter{
 private:
-    int index;
     ofstream outfile;
 public:
     ~CellCountWriter();
@@ -139,14 +157,10 @@ public:
     void duringSimAction(CList& clone_list);
     void beginAction(CList& clone_list);
     bool readLine(vector<string>& parsed_line);
-    int getTypeIndex(){
-        return index;
-    }
 };
 
-class FitnessDistWriter: public DuringOutputWriter{
+class FitnessDistWriter: public IndexedWriter, public DuringOutputWriter{
 private:
-    int index;
     ofstream outfile;
     void write_dist(ofstream& outfile, CList& clone_list);
 public:
@@ -157,9 +171,6 @@ public:
     void duringSimAction(CList& clone_list);
     void beginAction(CList& clone_list);
     bool readLine(vector<string>& parsed_line);
-    int getTypeIndex(){
-        return index;
-    }
 };
 
 class AllTypesWideWriter: public DuringOutputWriter{
@@ -176,9 +187,8 @@ public:
     bool readLine(vector<string>& parsed_line);
 };
 
-class MeanFitWriter: public DuringOutputWriter{
+class MeanFitWriter: public IndexedWriter, public DuringOutputWriter{
 private:
-    int index;
     ofstream outfile;
 public:
     ~MeanFitWriter();
@@ -193,30 +203,13 @@ public:
     }
 };
 
-class TunnelWriter: public DuringOutputWriter{
+class TunnelWriter: public IndexedWriter, public DuringOutputWriter{
 private:
-    int index;
     bool tunneled;
     ofstream outfile;
 public:
     ~TunnelWriter();
     TunnelWriter(string ofile);
-    void finalAction(CList& clone_list);
-    void duringSimAction(CList& clone_list);
-    void beginAction(CList& clone_list);
-    bool readLine(vector<string>& parsed_line);
-    int getTypeIndex(){
-        return index;
-    }
-};
-
-class AllTypesWriter: public DuringOutputWriter{
-private:
-    vector<CellCountWriter *> writers;
-public:
-    ~AllTypesWriter();
-    AllTypesWriter(string ofile, int period);
-    AllTypesWriter(string ofile);
     void finalAction(CList& clone_list);
     void duringSimAction(CList& clone_list);
     void beginAction(CList& clone_list);
@@ -234,10 +227,9 @@ public:
     bool readLine(vector<string>& parsed_line){return true;}
 };
 
-class IfTypeWriter: public FinalOutputWriter{
+class IfTypeWriter: public IndexedWriter, public FinalOutputWriter{
 private:
     ofstream outfile;
-    int index;
 public:
     ~IfTypeWriter();
     IfTypeWriter(string ofile);
@@ -290,10 +282,9 @@ public:
     bool readLine(vector<string>& parsed_line){return true;}
 };
 
-class NewMutantWriter: public DuringOutputWriter{
+class NewMutantWriter: public IndexedWriter, public DuringOutputWriter{
 private:
     ofstream outfile;
-    int index;
     bool has_mutant;
     //vector<string> *to_write;
 public:
@@ -304,5 +295,76 @@ public:
     void duringSimAction(CList& clone_list);
     bool readLine(vector<string>& parsed_line);
 };
+
+// AllTypesWriter template class implementations
+
+template <class WRITER_CLASS> void AllTypesWriter<WRITER_CLASS>::addWriter(CList& clone_list, WRITER_CLASS& new_writer, int idx){
+    new_writer.setSimNumber(sim_number);
+    params_line.back() = to_string(idx);
+    new_writer.readLine(params_line);
+    writers.push_back(&new_writer);
+    new_writer.beginAction(clone_list);
+}
+
+template <class WRITER_CLASS> AllTypesWriter<WRITER_CLASS>:: AllTypesWriter(string ofile): OutputWriter(ofile){}
+
+template <class WRITER_CLASS> AllTypesWriter<WRITER_CLASS>:: ~AllTypesWriter(){
+    vector<WRITER_CLASS *>().swap(writers);
+}
+
+template <class WRITER_CLASS> void AllTypesWriter<WRITER_CLASS>::beginAction(CList& clone_list){
+    int type_index;
+    vector<CellType *> root_types = clone_list.getRootTypes();
+    for (vector<CellType *>::iterator it = root_types.begin(); it != root_types.end(); ++it){
+        type_index = (*it)->getIndex();
+        WRITER_CLASS *new_writer = new WRITER_CLASS(ofile_loc);
+        addWriter(clone_list, *new_writer, type_index);
+    }
+}
+
+template <class WRITER_CLASS> void AllTypesWriter<WRITER_CLASS>::duringSimAction(CList& clone_list){
+    for (typename vector<WRITER_CLASS *>::iterator it = writers.begin(); it != writers.end(); ++it){
+        (*it)->duringSimAction(clone_list);
+    }
+    
+    if (writers.size() == (clone_list.getMaxTypes() - 1)){
+        return;
+    }
+    
+    vector<int> new_types = vector<int>();
+    for (int i=0; i<clone_list.getMaxTypes(); i++){
+        if (!clone_list.getTypeByIndex(i)){
+            continue;
+        }
+        bool found = false;
+        for (typename vector<WRITER_CLASS *>::iterator it = writers.begin(); it != writers.end(); ++it){
+            found = found || ((*it)->getTypeIndex() == i);
+        }
+        if (!found){
+            new_types.push_back(i);
+        }
+    }
+    for (vector<int>::iterator it = new_types.begin(); it != new_types.end(); ++it){
+        WRITER_CLASS *new_writer = new WRITER_CLASS(ofile_loc);
+        addWriter(clone_list, *new_writer, (*it));
+    }
+}
+
+template <class WRITER_CLASS> void AllTypesWriter<WRITER_CLASS>::finalAction(CList& clone_list){
+    for (typename vector<WRITER_CLASS *>::iterator it = writers.begin(); it != writers.end(); ++it){
+        (*it)->finalAction(clone_list);
+    }
+    vector<WRITER_CLASS *>().swap(writers);
+}
+
+template <class WRITER_CLASS> bool AllTypesWriter<WRITER_CLASS>::readLine(vector<string>& parsed_line){
+    params_line = parsed_line;
+    params_line.push_back("0");
+    WRITER_CLASS *test = new WRITER_CLASS(ofile_loc);
+    bool to_return = test->readLine(params_line);
+    delete test;
+    return to_return;
+}
+
 
 #endif /* OutputWriter_h */

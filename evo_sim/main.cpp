@@ -52,6 +52,9 @@ void *sim_thread(void *arg){
     else if (model_type == "update"){
         clone_list = new UpdateAllPop();
     }
+    else if (model_type == "passage"){
+        clone_list = new PassagePop();
+    }
     else if (model_type == "sexual"){
         clone_list = new SexReprPop();
     }
@@ -182,6 +185,10 @@ CellType::CellType(int i, CellType *parent_type){
     children = std::vector<CellType *>();
     if (parent_type){
         empirical_dist = *parent_type->getEmpiricalDist();
+        phylogeny_depth = parent_type->getDepth() + 1;
+    }
+    else{
+        phylogeny_depth = 0;
     }
     num_cells = 0;
     root_node = NULL;
@@ -645,7 +652,41 @@ bool SimParams::make_writer(vector<string> &parsed_line){
         new_writer = new TypeStructureWriter(*outfolder);
     }
     else if (type == "AllTypes"){
-        new_writer = new AllTypesWriter(*outfolder);
+        new_writer = new AllTypesWriter<CountStepWriter>(*outfolder);
+    }
+    else if (type == "AllTypesAny"){
+        string writer_type = parsed_line[0];
+        if (writer_type == "CountStep"){
+            new_writer = new AllTypesWriter<CountStepWriter>(*outfolder);
+        }
+        else if (writer_type == "CellCount"){
+            new_writer = new AllTypesWriter<CellCountWriter>(*outfolder);
+        }
+        else if (writer_type == "FitnessDist"){
+            new_writer = new AllTypesWriter<FitnessDistWriter>(*outfolder);
+        }
+        else if (writer_type == "MotherDaughter"){
+            new_writer = new AllTypesWriter<MotherDaughterWriter>(*outfolder);
+        }
+        else if (writer_type == "NumMutations"){
+            new_writer = new AllTypesWriter<NumMutationsWriter>(*outfolder);
+        }
+        else if (writer_type == "MeanFit"){
+            new_writer = new AllTypesWriter<MeanFitWriter>(*outfolder);
+        }
+        else if (writer_type == "Tunnel"){
+            new_writer = new AllTypesWriter<TunnelWriter>(*outfolder);
+        }
+        else if (writer_type == "NewMutant"){
+            new_writer = new AllTypesWriter<NewMutantWriter>(*outfolder);
+        }
+        else if (writer_type == "IfType"){
+            new_writer = new AllTypesWriter<IfTypeWriter>(*outfolder);
+        }
+        else{
+            return false;
+        }
+        parsed_line.erase(parsed_line.begin());
     }
     else if (type == "CellCount"){
         new_writer = new CellCountWriter(*outfolder);
@@ -908,6 +949,26 @@ bool SimParams::make_clone(vector<string> &parsed_line){
             new_type->insertClone(*new_clone);
         }
     }
+    else if (type == "EmpiricalDimReturns"){
+        if (parsed_line.size() < 6){
+            err_type = "bad params for EmpiricalDimReturnsClone";
+            return false;
+        }
+        Clone *new_clone;
+        for (int i=0; i<num_cells; i++){
+            if (*model_type == "moran"){
+                new_clone = new EmpiricalDimReturnsClone(*new_type, true);
+            }
+            else{
+                new_clone = new EmpiricalDimReturnsClone(*new_type, false);
+            }
+            if (!new_clone->readLine(parsed_line)){
+                err_type = "bad clone";
+                return false;
+            }
+            new_type->insertClone(*new_clone);
+        }
+    }
     else if (type == "TypeEmpiric"){
         if (parsed_line.size() < 5){
             err_type = "bad params for TypeEmpiricClone";
@@ -975,6 +1036,9 @@ bool SimParams::make_mut_handler(){
     }
     else if (mut_type == "Neutral"){
         mut_handler = new NeutralMutation();
+    }
+    else if (mut_type == "DimReturnsUnif"){
+        mut_handler = new DimReturnsUnifMutation();
     }
     else if (mut_type == "None"){
         mut_handler = new NoMutation();

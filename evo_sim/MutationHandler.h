@@ -147,6 +147,16 @@ public:
     bool read(std::vector<string>& params){return true;}
 };
 
+class DimReturnsUnifMutation: public MutationHandler{
+private:
+    double dim_rate;
+    double max_gain;
+public:
+    DimReturnsUnifMutation(){};
+    void generateMutant(CellType& type, double b, double mut);
+    bool read(std::vector<string>& params);
+};
+
 class NoMutation: public MutationHandler{
 public:
     NoMutation(){};

@@ -128,6 +128,11 @@ HerEmpiricClone::HerEmpiricClone(CellType& type, bool mult) : EmpiricalClone(typ
     var = 0;
 }
 
+EmpiricalDimReturnsClone::EmpiricalDimReturnsClone(CellType& type, bool mult) : HerEmpiricClone(type, mult){
+    dim_rate = 0;
+    orig_var = 0;
+}
+
 void SimpleClone::reproduce(){
     uniform_real_distribution<double> runif;
     if (runif(*eng) < mut_prob){
@@ -175,6 +180,14 @@ HerEmpiricClone::HerEmpiricClone(CellType& type, double mu, double sig, double m
     var = sig;
     setNewBirth(mean, var);
     cell_count = 1;
+}
+
+EmpiricalDimReturnsClone::EmpiricalDimReturnsClone(CellType& type, double mu, double sig, double orig_sig, double mut, bool mult) : HerEmpiricClone(type, mu, sig, mut, mult){
+    orig_var = orig_sig;
+}
+
+EmpiricalDimReturnsClone::EmpiricalDimReturnsClone(CellType& type, double mu, double sig, double orig_sig, double mut, double offset, bool mult) : HerEmpiricClone(type, mu, sig, mut, offset, mult){
+    orig_var = orig_sig;
 }
 
 HeritableClone::HeritableClone(CellType& type, double mu, double sig, double mut, double offset, bool mult, string dist) : StochClone(type, mut, mult){
@@ -274,7 +287,12 @@ HerResetEmpiricClone::HerResetEmpiricClone(CellType& type, double mu, double sig
 HerEmpiricClone::HerEmpiricClone(CellType& type, double mu, double sig, double mut, double offset, bool mult) : EmpiricalClone(type, mut, mult){
     mean = mu;
     var = sig;
-    birth_rate = mean * offset;
+    if (is_mult){
+        birth_rate = mean * offset;
+    }
+    else{
+        birth_rate = mean + offset;
+    }
     cell_count = 1;
 }
 
@@ -699,6 +717,27 @@ double HerEmpiricClone::setNewBirth(double mean, double var){
     return offset;
 }
 
+void EmpiricalDimReturnsClone::reproduce(){
+    var = orig_var * exp(-dim_rate * cell_type->getPopulation().getCurrTime());
+    uniform_real_distribution<double> runif;
+    if (runif(*eng) < mut_prob){
+        MutationHandler& mut_handle = cell_type->getMutHandler();
+        mut_handle.generateMutant(*cell_type, birth_rate, mut_prob);
+        removeOneCell();
+        double offset = setNewBirth(birth_rate, var);
+        EmpiricalDimReturnsClone *new_node = new EmpiricalDimReturnsClone(mut_handle.getNewType(), mut_handle.getNewBirthRate(), var, orig_var, mut_handle.getNewMutProb(), offset, is_mult);
+        mut_handle.getNewType().insertClone(*new_node);
+        addCells(1);
+    }
+    else{
+        removeOneCell();
+        EmpiricalDimReturnsClone *new_node = new EmpiricalDimReturnsClone(*cell_type, birth_rate, var, orig_var, mut_prob, is_mult);
+        birth_rate = new_node->getBirthRate();
+        addCells(1);
+        cell_type->insertClone(*new_node);
+    }
+}
+
 void HerEmpiricClone::reproduce(){
     uniform_real_distribution<double> runif;
     if (runif(*eng) < mut_prob){
@@ -940,6 +979,33 @@ bool HerEmpiricClone::readLine(vector<string>& parsed_line){
     birth_rate = drawEmpirical(mean, var);
     return checkRep();
 }
+
+bool EmpiricalDimReturnsClone::readLine(vector<string>& parsed_line){
+    //full line syntax: Clone EmpiricalDimReturns [type_id] [num_cells] [mean] [var] [dim_rate] [mut_rate] [dist_filename]
+    cell_count = 1;
+    string filename;
+    try{
+        mean =stod(parsed_line[1]);
+        var =stod(parsed_line[2]);
+        orig_var =stod(parsed_line[2]);
+        dim_rate =stod(parsed_line[3]);
+        mut_prob =stod(parsed_line[4]);
+        filename = parsed_line[5];
+    }
+    catch (...){
+        return false;
+    }
+    if (parsed_line.size()>6){
+        double death = stod(parsed_line[6]);
+        cell_type->setDeathRate(death);
+    }
+    if (!readDist(filename)){
+        return false;
+    }
+    birth_rate = drawEmpirical(mean, var);
+    return checkRep();
+}
+
 
 bool EmpiricalClone::readDist(string filename){
     if (cell_type->hasDist()){

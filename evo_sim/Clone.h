@@ -296,6 +296,45 @@ public:
     bool readLine(vector<string>& parsed_line);
 };
 
+class EmpiricalDimReturnsClone: public HerEmpiricClone{
+private:
+    // var of dist = orig_var * exp(-dim_rate*t)
+    double dim_rate;
+    double orig_var;
+public:
+    EmpiricalDimReturnsClone(CellType& type, double mu, double sig, double orig_sig, double mut, bool mult);
+    EmpiricalDimReturnsClone(CellType& type, double mu, double sig, double orig_sig, double mut, double offset, bool mult);
+    EmpiricalDimReturnsClone(CellType& type, bool mult);
+    void reproduce();
+    bool readLine(vector<string>& parsed_line);
+};
+
+/*
+class FixedStepClone: public Clone{
+protected:
+    double step_size;
+    double fwd_prob;
+    double back_prob;
+public:
+    FixedStepClone(CellType& type, double start_birth, bool mult);
+    FixedStepClone(CellType& type, Clone& parent, bool mult);
+    FixedStepClone(CellType& type, bool mult);
+    void reproduce();
+    bool readLine(vector<string>& parsed_line);
+};
+
+class FixedDimReturnsClone: public FixedStepClone{
+private:
+    double dim_rate;
+public:
+    FixedDimReturnsClone(CellType& type, double start_birth, bool mult);
+    FixedDimReturnsClone(CellType& type, Clone& parent, bool mult);
+    FixedDimReturnsClone(CellType& type, bool mult);
+    void reproduce();
+    bool readLine(vector<string>& parsed_line);
+};
+ */
+
 class HerResetEmpiricClone: public HerEmpiricClone{
 private:
     // FIFO queue

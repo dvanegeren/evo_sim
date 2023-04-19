@@ -52,6 +52,8 @@ protected:
     void deleteList();
     void clearClones();
     virtual bool checkInit();
+    virtual double nextEventTime();
+    virtual void nextEventExecute();
     
     /* adds cells to population. should NOT be used when a new clone is added, only when cells are added to an existing clone.
      use insertNode if a new clone should be added.
@@ -178,6 +180,23 @@ class MoranPop: public CList{
 public:
     MoranPop();
     virtual void advance();
+};
+
+class PassagePop: public CList{
+private:
+    std::vector<double> frozen_passage_times;
+    std::vector<int> frozen_passage_cellnums;
+    std::queue<double> passage_times;
+    std::queue<int> passage_cellnums;
+    void clear_queue(std::queue<int> &q);
+protected:
+    bool checkInit();
+    virtual void passage();
+public:
+    PassagePop();
+    virtual void advance();
+    virtual void refreshSim();
+    bool handle_line(vector<string>& parsed_line);
 };
 
 class UpdateAllPop: public CList{

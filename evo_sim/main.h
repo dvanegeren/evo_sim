@@ -74,6 +74,7 @@ private:
     int index;
     int num_cells;
     double total_birth_rate;
+    int phylogeny_depth;
     void unlinkType();
     void setNext(CellType& next){
         next_node = &next;
@@ -128,7 +129,9 @@ public:
     int getIndex(){
         return index;
     }
-    
+    int getDepth(){
+        return phylogeny_depth;
+    }
     int getNumCells(){
         return num_cells;
     }

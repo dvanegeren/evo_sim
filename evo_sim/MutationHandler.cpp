@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <random>
+#include <cmath>
 
 using namespace std;
 
@@ -154,6 +155,51 @@ void NeutralMutation::generateMutant(CellType& type, double b, double mut){
         mut_prob = mut;
     }
     has_mutated = true;
+}
+
+void DimReturnsUnifMutation::generateMutant(CellType& type, double b, double mut){
+    if (type.getPopulation().noTypesLeft()){
+        throw "tried to get new type when no types left";
+    }
+    else{
+        uniform_real_distribution<double> runif;
+        new_type = getNewTypeByIndex(type.getPopulation().getNextType(), type);
+        birth_rate = b + runif(*eng) * max_gain * pow(dim_rate, type.getDepth());
+        mut_prob = mut;
+    }
+    has_mutated = true;
+}
+
+bool DimReturnsUnifMutation::read(std::vector<string>& params){
+    
+    string pre;
+    string post;
+    bool isDimRate = false;
+    bool isBenefit = false;
+    for (int i=0; i<int(params.size()); i++){
+        string tok = params[i];
+        stringstream ss;
+        ss.str(tok);
+        getline(ss, pre, ',');
+        if (!getline(ss, post)){
+            return false;
+        }
+        if (pre=="dim"){
+            isDimRate = true;
+            dim_rate =stod(post);
+        }
+        else if (pre=="fit"){
+            isBenefit = true;
+            max_gain =stod(post);
+        }
+        else{
+            return false;
+        }
+    }
+    if (!isDimRate || !isBenefit){
+        return false;
+    }
+    return true;
 }
 
 bool ThreeTypesMutation::read(std::vector<string>& params){

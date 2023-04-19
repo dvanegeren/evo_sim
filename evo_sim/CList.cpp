@@ -139,17 +139,21 @@ void CList::killCell(Clone& dead){
     }
 }
 
-void CList::advance()
-{
+double CList::nextEventTime(){
     uniform_real_distribution<double> runif;
-    mut_model->reset();
     double total_death = getTotalDeath();
     if (tot_cell_count == 0){
         tot_rate = 0;
     }
     double tot_birth = getTotalBirth();
-    time += -log(runif(*eng))/(tot_birth + total_death);
-    double b_or_d = runif(*eng)*(tot_birth + total_death);
+    return -log(runif(*eng))/(tot_birth + total_death);
+}
+
+void CList::nextEventExecute(){
+    uniform_real_distribution<double> runif;
+    double total_death = getTotalDeath();
+    double total_birth = getTotalBirth();
+    double b_or_d = runif(*eng)*(total_birth + total_death);
     if (b_or_d < (total_death)){
         if (death_var){
             Clone& dead = chooseDeadVar(total_death);
@@ -171,6 +175,13 @@ void CList::advance()
             new_type = mut_model->getNewType().getIndex();
         }
     }
+}
+
+void CList::advance()
+{
+    mut_model->reset();
+    time += nextEventTime();
+    nextEventExecute();
 }
 
 Clone& CList::chooseReproducer(){
@@ -331,6 +342,124 @@ bool CList::isOneType(){
 
 int CList::newestType(){
     return end_node->getIndex();
+}
+
+void PassagePop::clear_queue(std::queue<int> &q)
+{
+   std::queue<int> empty;
+   std::swap(q, empty);
+}
+
+void PassagePop::refreshSim(){
+    CList::refreshSim();
+    std::queue<int> empty;
+    std::swap(passage_cellnums, empty);
+    std::queue<double> empty2;
+    std::swap(passage_times, empty2);
+    for (vector<double>::iterator it = frozen_passage_times.begin(); it != frozen_passage_times.end(); ++it){
+        passage_times.push(*it);
+    }
+    for (vector<int>::iterator it = frozen_passage_cellnums.begin(); it != frozen_passage_cellnums.end(); ++it){
+        passage_cellnums.push(*it);
+    }
+}
+
+PassagePop::PassagePop() : CList(){
+    std::vector<int> frozen_passage_cellnums = std::vector<int>();
+    std::vector<double> frozen_passage_times = std::vector<double>();
+    std::queue<int> passage_cellnums;
+    std::queue<double> passage_times;
+}
+
+bool PassagePop::checkInit(){
+    bool checked = frozen_passage_cellnums.size() == frozen_passage_times.size();
+    checked = checked && std::all_of(frozen_passage_cellnums.begin(), frozen_passage_cellnums.end(), [](int i) { return i>=0; });
+    checked = checked && std::all_of(frozen_passage_times.begin(), frozen_passage_times.end(), [](double i) { return i>=0; });
+    return (CList::checkInit() && checked);
+}
+
+void PassagePop::passage(){
+    time = passage_times.front();
+    passage_times.pop();
+    int num_to_kill = tot_cell_count - passage_cellnums.front();
+    std::vector<int> cell_idx(tot_cell_count);
+    if (num_to_kill <= 0){
+        passage_cellnums.pop();
+        return;
+    }
+ 
+    for (int i = 0; i < tot_cell_count; i++) {
+        cell_idx[i] = i;
+    }
+    
+    std::random_shuffle(cell_idx.begin(), cell_idx.end());
+    std::vector<int> dead_idx = std::vector<int>(cell_idx.begin(), cell_idx.begin()+num_to_kill);
+    std::sort(dead_idx.begin(), dead_idx.end());
+    std::queue<int> dead_queue;
+    for (vector<int>::iterator it = dead_idx.begin(); it != dead_idx.end(); ++it){
+        dead_queue.push(*it);
+    }
+    
+    CellType *dead_type = root;
+    while (dead_type->getNumCells() == 0){
+        dead_type = dead_type->getNext();
+    }
+    
+    Clone *dead = dead_type->getRoot();
+    double curr_clone = dead->getCellCount();
+    std::queue<Clone *> to_kill = std::queue<Clone *>();
+    while(!dead_queue.empty() && dead_queue.front() < curr_clone){
+        to_kill.push(dead);
+        dead_queue.pop();
+    }
+    while (dead->getNextClone() && !dead_queue.empty()){
+        dead = dead->getNextClone();
+        curr_clone += dead->getCellCount();
+        while(!dead_queue.empty() && dead_queue.front() < curr_clone){
+            to_kill.push(dead);
+            dead_queue.pop();
+        }
+    }
+    while(!to_kill.empty()){
+        killCell(*to_kill.front());
+        to_kill.pop();
+    }
+    /*
+    for (int i=0; i<num_to_kill; i++){
+        Clone& dead = chooseDead();
+        killCell(dead);
+    }
+    */
+    passage_cellnums.pop();
+}
+
+void PassagePop::advance(){
+    mut_model->reset();
+    double next_time = nextEventTime() + time;
+    if (passage_times.empty() || next_time < passage_times.front()){
+        time = next_time;
+        nextEventExecute();
+    }
+    else{
+        passage();
+    }
+}
+
+bool PassagePop::handle_line(vector<string>& parsed_line){
+    if (parsed_line[0] == "pass_time" && parsed_line.size() > 1){
+        for (vector<string>::iterator it = parsed_line.begin() + 1; it != parsed_line.end(); ++it){
+            frozen_passage_times.push_back(stod(*it));
+        }
+    }
+    else if (parsed_line[0] == "pass_num" && parsed_line.size() > 1){
+        for (vector<string>::iterator it = parsed_line.begin() + 1; it != parsed_line.end(); ++it){
+            frozen_passage_cellnums.push_back(stoi(*it));
+        }
+    }
+    else{
+        return CList::handle_line(parsed_line);
+    }
+    return true;
 }
 
 void MoranPop::advance(){

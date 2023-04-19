@@ -18,22 +18,32 @@
 
 using namespace std;
 
-OutputWriter::OutputWriter(){
+OutputWriter::~OutputWriter(){}
+FinalOutputWriter::~FinalOutputWriter(){}
+IndexedWriter::~IndexedWriter(){}
+DuringOutputWriter::~DuringOutputWriter(){}
+
+OutputWriter::OutputWriter(string ofile){
+    ofile_loc = ofile;
     sim_number = 1;
 }
 
-FinalOutputWriter::FinalOutputWriter(string ofile){
-    ofile_loc = ofile;
+FinalOutputWriter::FinalOutputWriter(string ofile): OutputWriter(ofile) {}
+
+IndexedWriter::IndexedWriter(string ofile, int i): OutputWriter(ofile) {
+    index = i;
 }
 
-DuringOutputWriter::DuringOutputWriter(string ofile, int period){
-    ofile_loc = ofile;
+IndexedWriter::IndexedWriter(string ofile): OutputWriter(ofile) {
+    index = -1;
+}
+
+DuringOutputWriter::DuringOutputWriter(string ofile, int period): OutputWriter(ofile) {
     last_written = 0;
     writing_period = period;
 }
 
-DuringOutputWriter::DuringOutputWriter(string ofile){
-    ofile_loc = ofile;
+DuringOutputWriter::DuringOutputWriter(string ofile): OutputWriter(ofile) {
     last_written = 0;
     writing_period = 0;
 }
@@ -50,7 +60,7 @@ bool DuringOutputWriter::shouldWrite(CList& clone_list){
     return false;
 }
 
-TypeStructureWriter::TypeStructureWriter(string ofile):FinalOutputWriter(ofile){
+TypeStructureWriter::TypeStructureWriter(string ofile):OutputWriter(ofile), FinalOutputWriter(ofile){
     ofile_name = "type_tree.oevo";
 }
 
@@ -74,22 +84,16 @@ void TypeStructureWriter::finalAction(CList& clone_list){
     sim_number++;
 }
 
-CellCountWriter::CellCountWriter(string ofile, int period, int i, int sim):DuringOutputWriter(ofile, period){
+CellCountWriter::CellCountWriter(string ofile, int period, int i, int sim):OutputWriter(ofile), IndexedWriter(ofile, i), DuringOutputWriter(ofile, period){
     ofile_name = "type_" + to_string(i) + ".oevo";
-    index = i;
     sim_number = sim;
 }
 
-CellCountWriter::CellCountWriter(string ofile): DuringOutputWriter(ofile){
-    index = 0;
-}
+CellCountWriter::CellCountWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){}
 
-NumMutationsWriter::NumMutationsWriter(string ofile): DuringOutputWriter(ofile){
-    index = 0;
-}
+NumMutationsWriter::NumMutationsWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){}
 
-CountStepWriter::CountStepWriter(string ofile): DuringOutputWriter(ofile){
-    index = 0;
+CountStepWriter::CountStepWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){
     timestep = 0;
 }
 
@@ -267,21 +271,13 @@ void MotherDaughterWriter::finalAction(CList& clone_list){
     outfile.close();
 }
 
-AllTypesWriter::AllTypesWriter(string ofile, int period): DuringOutputWriter(ofile, period){
-    ofile_name = "all_types";
-}
-
-AllTypesWriter::AllTypesWriter(string ofile): DuringOutputWriter(ofile){
-    ofile_name = "all_types";
-}
-
-AllTypesWideWriter::AllTypesWideWriter(string ofile, int period, int sim): DuringOutputWriter(ofile, period){
+AllTypesWideWriter::AllTypesWideWriter(string ofile, int period, int sim): OutputWriter(ofile), DuringOutputWriter(ofile, period){
     sim_number = sim;
 }
 
-AllTypesWideWriter::AllTypesWideWriter(string ofile): DuringOutputWriter(ofile){}
+AllTypesWideWriter::AllTypesWideWriter(string ofile): OutputWriter(ofile), DuringOutputWriter(ofile){}
 
-TunnelWriter::TunnelWriter(string ofile): DuringOutputWriter(ofile){
+TunnelWriter::TunnelWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){
     writing_period = 0;
     tunneled = true;
 }
@@ -322,67 +318,6 @@ bool TunnelWriter::readLine(vector<string>& parsed_line){
     return true;
 }
 
-void AllTypesWriter::beginAction(CList& clone_list){
-    int type_index;
-    vector<CellType *> root_types = clone_list.getRootTypes();
-    for (vector<CellType *>::iterator it = root_types.begin(); it != root_types.end(); ++it){
-        type_index = (*it)->getIndex();
-        CellCountWriter *new_writer = new CellCountWriter(ofile_loc, writing_period, type_index, sim_number);
-        writers.push_back(new_writer);
-        new_writer->beginAction(clone_list);
-    }
-}
-
-void AllTypesWriter::duringSimAction(CList& clone_list){
-    for (vector<CellCountWriter *>::iterator it = writers.begin(); it != writers.end(); ++it){
-        (*it)->duringSimAction(clone_list);
-    }
-    
-    if (writers.size() == (clone_list.getMaxTypes() - 1)){
-        return;
-    }
-    
-    vector<int> new_types = vector<int>();
-    for (int i=0; i<clone_list.getMaxTypes(); i++){
-        if (!clone_list.getTypeByIndex(i)){
-            continue;
-        }
-        bool found = false;
-        for (vector<CellCountWriter *>::iterator it = writers.begin(); it != writers.end(); ++it){
-            found = found || ((*it)->getTypeIndex() == i);
-        }
-        if (!found){
-            new_types.push_back(i);
-        }
-    }
-    for (vector<int>::iterator it = new_types.begin(); it != new_types.end(); ++it){
-        CellCountWriter *new_writer = new CellCountWriter(ofile_loc, writing_period, (*it), sim_number);
-        writers.push_back(new_writer);
-        new_writer->beginAction(clone_list);
-    }
-}
-
-void AllTypesWriter::finalAction(CList& clone_list){
-    for (vector<CellCountWriter *>::iterator it = writers.begin(); it != writers.end(); ++it){
-        (*it)->finalAction(clone_list);
-    }
-    writers.clear();
-    resetWriter();
-}
-
-bool AllTypesWriter::readLine(vector<string>& parsed_line){
-    if (parsed_line.size() != 1){
-        return false;
-    }
-    try{
-        writing_period =stoi(parsed_line[0]);
-    }
-    catch (...){
-        return false;
-    }
-    return true;
-}
-
 bool AllTypesWideWriter::readLine(vector<string>& parsed_line){
     if (parsed_line.size() != 1){
         return false;
@@ -396,7 +331,7 @@ bool AllTypesWideWriter::readLine(vector<string>& parsed_line){
     return true;
 }
 
-IsExtinctWriter::IsExtinctWriter(string ofile): FinalOutputWriter(ofile){
+IsExtinctWriter::IsExtinctWriter(string ofile): OutputWriter(ofile), FinalOutputWriter(ofile){
     ofile_name = "extinction.oevo";
     outfile.open(ofile_loc+ofile_name, ios::app);
 }
@@ -412,7 +347,7 @@ IsExtinctWriter::~IsExtinctWriter(){
     outfile.close();
 }
 
-EndTimeWriter::EndTimeWriter(string ofile): FinalOutputWriter(ofile){
+EndTimeWriter::EndTimeWriter(string ofile): OutputWriter(ofile), FinalOutputWriter(ofile){
     ofile_name = "end_time.oevo";
     outfile.open(ofile_loc+ofile_name, ios::app);
 }
@@ -433,12 +368,12 @@ MotherDaughterWriter::~MotherDaughterWriter(){
     outfile.close();
 }
 
-EndPopWriter::EndPopWriter(string ofile): FinalOutputWriter(ofile){
+EndPopWriter::EndPopWriter(string ofile): OutputWriter(ofile), FinalOutputWriter(ofile){
     ofile_name = "end_pop.oevo";
     outfile.open(ofile_loc+ofile_name, ios::app);
 }
 
-EndPopTypesWriter::EndPopTypesWriter(string ofile): FinalOutputWriter(ofile){
+EndPopTypesWriter::EndPopTypesWriter(string ofile): OutputWriter(ofile), FinalOutputWriter(ofile){
     ofile_name = "end_pop_types.oevo";
     outfile.open(ofile_loc+ofile_name, ios::app);
 }
@@ -470,12 +405,12 @@ EndPopTypesWriter::~EndPopTypesWriter(){
     outfile.close();
 }
 
-IfType2Writer::IfType2Writer(string ofile): FinalOutputWriter(ofile){
+IfType2Writer::IfType2Writer(string ofile): OutputWriter(ofile), FinalOutputWriter(ofile){
     ofile_name = "iftype2.oevo";
     outfile.open(ofile_loc+ofile_name, ios::app);
 }
 
-IfTypeWriter::IfTypeWriter(string ofile): FinalOutputWriter(ofile){
+IfTypeWriter::IfTypeWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), FinalOutputWriter(ofile){
     ofile_name = "iftype.oevo";
 }
 
@@ -508,23 +443,21 @@ IfTypeWriter::~IfTypeWriter(){
     outfile.close();
 }
 
-FitnessDistWriter::FitnessDistWriter(string ofile, int period, int i, int sim):DuringOutputWriter(ofile, period){
+FitnessDistWriter::FitnessDistWriter(string ofile, int period, int i, int sim):OutputWriter(ofile), IndexedWriter(ofile, i), DuringOutputWriter(ofile, period){
     ofile_name = "type_" + to_string(i) + ".oevo";
-    index = i;
     sim_number = sim;
 }
 
-MeanFitWriter::MeanFitWriter(string ofile, int period, int i, int sim):DuringOutputWriter(ofile, period){
+MeanFitWriter::MeanFitWriter(string ofile, int period, int i, int sim):OutputWriter(ofile), IndexedWriter(ofile, i), DuringOutputWriter(ofile, period){
     ofile_name = "type_" + to_string(i) + ".oevo";
-    index = i;
     sim_number = sim;
 }
 
-FitnessDistWriter::FitnessDistWriter(string ofile): DuringOutputWriter(ofile){}
+FitnessDistWriter::FitnessDistWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){}
 
-MeanFitWriter::MeanFitWriter(string ofile): DuringOutputWriter(ofile){}
+MeanFitWriter::MeanFitWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){}
 
-MotherDaughterWriter::MotherDaughterWriter(string ofile): DuringOutputWriter(ofile){}
+MotherDaughterWriter::MotherDaughterWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){}
 
 bool MotherDaughterWriter::readLine(vector<string>& parsed_line){
     if (parsed_line.size() != 2){
@@ -656,9 +589,7 @@ void FitnessDistWriter::finalAction(CList& clone_list){
     resetWriter();
 }
 
-
-
-NewMutantWriter::NewMutantWriter(string ofile): DuringOutputWriter(ofile){
+NewMutantWriter::NewMutantWriter(string ofile): OutputWriter(ofile), IndexedWriter(ofile), DuringOutputWriter(ofile){
     has_mutant = false;
 }
 
