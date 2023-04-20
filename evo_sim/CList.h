@@ -57,7 +57,7 @@ protected:
     
     /* adds cells to population. should NOT be used when a new clone is added, only when cells are added to an existing clone.
      use insertNode if a new clone should be added.
-     @param b PER CELL birth rate of new cells to be added
+     @param b TOTAL birth rate of new cells to be added
      @param num_cells number of cells to be added
      */
     void addCells(int num_cells, double b);

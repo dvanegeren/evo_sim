@@ -13,6 +13,7 @@
 #include <vector>
 #include <queue>
 #include <string>
+#include <fstream>
 
 using namespace std;
 
@@ -65,11 +66,11 @@ public:
         return mut_prob;
     }
     
-    double getBirthRate(){
+    virtual double getBirthRate(){
         return birth_rate;
     }
     double getDeathRate();
-    double getTotalBirth(){
+    virtual double getTotalBirth(){
         return birth_rate * cell_count;
     }
     bool isSingleCell(){
@@ -105,7 +106,13 @@ public:
      should not be called if there is <=1 cell left in the clone
      MODIFIES clone_list, cell_type
      */
-    void removeOneCell();
+    virtual void removeOneCell();
+    
+    virtual void writeBirthRate(ofstream& outfile){
+        for (int i=0; i<cell_count; i++){
+            outfile << ", " << getBirthRate();
+        }
+    }
 };
 
 class StochClone: public Clone{
@@ -309,31 +316,46 @@ public:
     bool readLine(vector<string>& parsed_line);
 };
 
-/*
 class FixedStepClone: public Clone{
+private:
+    std::unordered_map<int, int> fit_to_num;
+    bool checkRep(){
+        return (cell_count >= 0 && total_fit >= 0 && step_size >= 0 && fwd_prob >= 0 && back_prob >= 0 && fwd_prob + back_prob <= 1);
+    };
 protected:
     double step_size;
+    double total_fit;
     double fwd_prob;
     double back_prob;
+    void addCells(int num_cells, int fitness);
+    void removeOneCell(int fitness_class);
+    // Modifies things internal to the FixedStepClone ONLY (not the cell type)
+    void insertCellsOnly(int num_cells, int fitness_class);
+    int chooseReproducer();
+    int chooseDead();
 public:
-    FixedStepClone(CellType& type, double start_birth, bool mult);
-    FixedStepClone(CellType& type, Clone& parent, bool mult);
-    FixedStepClone(CellType& type, bool mult);
+    FixedStepClone(CellType& type, double fwd, double back, double step, double mut);
+    FixedStepClone(CellType& type);
     void reproduce();
     bool readLine(vector<string>& parsed_line);
+    void removeOneCell();
+    double getBirthRate() { return chooseReproducer()*step_size; }
+    double getTotalBirth() { return total_fit; }
+    virtual void writeBirthRate(ofstream& outfile);
 };
 
 class FixedDimReturnsClone: public FixedStepClone{
 private:
     double dim_rate;
 public:
-    FixedDimReturnsClone(CellType& type, double start_birth, bool mult);
-    FixedDimReturnsClone(CellType& type, Clone& parent, bool mult);
-    FixedDimReturnsClone(CellType& type, bool mult);
+    FixedDimReturnsClone(CellType& type, double fwd, double back, double step, double dim, double mut);
+    FixedDimReturnsClone(CellType& type);
     void reproduce();
     bool readLine(vector<string>& parsed_line);
+    bool checkRep(){
+        return (dim_rate >= 0);
+    };
 };
- */
 
 class HerResetEmpiricClone: public HerEmpiricClone{
 private:

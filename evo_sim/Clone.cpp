@@ -326,7 +326,7 @@ TypeEmpiricClone::TypeEmpiricClone(CellType& type, double mu, double sig, double
 
 void Clone::addCells(int num_cells){
     cell_count+=num_cells;
-    cell_type->addCells(num_cells, birth_rate);
+    cell_type->addCells(num_cells, getTotalBirth());
 }
 
 double StochClone::drawLogNorm(double mean, double var){
@@ -1140,4 +1140,178 @@ bool SexReprClone::readLine(vector<string>& parsed_line){
     mut_prob = 1;
     cell_count = 1;
     return Clone::checkRep();
+}
+
+FixedStepClone::FixedStepClone(CellType& type): Clone(type){
+    total_fit = 0;
+}
+
+FixedStepClone::FixedStepClone(CellType& type, double fwd, double back, double step, double mut): FixedStepClone(type){
+    fwd_prob = fwd;
+    back_prob = back;
+    step_size = step;
+    mut_prob = mut;
+}
+
+int FixedStepClone::chooseReproducer(){
+    uniform_real_distribution<double> runif;
+    double chosen_idx = runif(*eng) * total_fit;
+    double curr_fit = 0;
+    int chosen_fit = -1;
+    for (auto it = fit_to_num.begin(); it != fit_to_num.end(); it++){
+        curr_fit += it->first * it->second * step_size;
+        if (curr_fit > chosen_idx){
+            chosen_fit = it->first;
+            break;
+        }
+    }
+    return chosen_fit;
+}
+
+int FixedStepClone::chooseDead(){
+    uniform_real_distribution<double> runif;
+    double chosen_idx = runif(*eng) * cell_count;
+    int curr_count = 0;
+    int chosen_fit = -1;
+    for (auto it = fit_to_num.begin(); it != fit_to_num.end(); it++){
+        curr_count += it->second;
+        if (curr_count > chosen_idx){
+            chosen_fit = it->first;
+            break;
+        }
+    }
+    return chosen_fit;
+}
+
+void FixedStepClone::insertCellsOnly(int num_cells, int fitness_class){
+    // Modifies things internal to the FixedStepClone ONLY (not the cell type)
+    cell_count += num_cells;
+    total_fit += num_cells * fitness_class * step_size;
+    if (fit_to_num.find(fitness_class) == fit_to_num.end()){
+        fit_to_num[fitness_class] = num_cells;
+    }
+    else{
+        fit_to_num[fitness_class] += num_cells;
+    }
+}
+
+void FixedStepClone::addCells(int num_cells, int fitness_class){
+    insertCellsOnly(num_cells, fitness_class);
+    cell_type->addCells(num_cells, num_cells*fitness_class * step_size);
+}
+
+void FixedStepClone::removeOneCell(int fitness_class){
+    total_fit -= fitness_class * step_size;
+    fit_to_num[fitness_class] --;
+    cell_count--;
+    cell_type->subtractOneCell(fitness_class * step_size);
+}
+
+void FixedStepClone::removeOneCell(){
+    int dead_fit_class = chooseDead();
+    removeOneCell(dead_fit_class);
+}
+
+void FixedStepClone::reproduce(){
+    uniform_real_distribution<double> runif;
+    double fit_move = runif(*eng);
+    int old_fit_class = chooseReproducer();
+    int new_fit_class = old_fit_class;
+    if (fit_move < fwd_prob){
+        new_fit_class ++;
+    }
+    else if (fit_move < fwd_prob + back_prob){
+        new_fit_class = max(0, new_fit_class-1);
+    }
+    removeOneCell(old_fit_class);
+    
+    if (runif(*eng) < mut_prob){
+        MutationHandler& mut_handle = cell_type->getMutHandler();
+        mut_handle.generateMutant(*cell_type, birth_rate, mut_prob);
+        int mut_fit_class = round(mut_handle.getNewBirthRate()/step_size);
+        FixedStepClone *new_node = new FixedStepClone(mut_handle.getNewType(), fwd_prob, back_prob, step_size, mut_handle.getNewMutProb());
+        new_node->addCells(1, mut_fit_class);
+        mut_handle.getNewType().insertClone(*new_node);
+        addCells(1, new_fit_class);
+    }
+    else{
+        addCells(2, new_fit_class);
+    }
+}
+
+bool FixedStepClone::readLine(vector<string>& parsed_line){
+    //full line syntax: Clone FixedStep [type_id] [num_cells] [fit_class] [step_size] [fwd_prob] [back_prob] [mut_rate]
+    int starting_fit = -1;
+    int num_cells = 0;
+    try{
+        num_cells =stoi(parsed_line[0]);
+        starting_fit = stoi(parsed_line[1]);
+        step_size = stod(parsed_line[2]);
+        fwd_prob = stod(parsed_line[3]);
+        back_prob =stod(parsed_line[4]);
+        mut_prob = stod(parsed_line[5]);
+        
+    }
+    catch (...){
+        return false;
+    }
+    insertCellsOnly(num_cells, starting_fit);
+    
+    return FixedStepClone::checkRep();
+}
+
+void FixedStepClone::writeBirthRate(ofstream& outfile){
+    for (auto it = fit_to_num.begin(); it != fit_to_num.end(); it++){
+        for (int i=0; i<it->second; i++){
+            outfile << ", " << it->first * step_size;
+        }
+    }
+}
+
+FixedDimReturnsClone::FixedDimReturnsClone(CellType& type): FixedStepClone(type) {}
+
+FixedDimReturnsClone::FixedDimReturnsClone(CellType& type, double fwd, double back, double step, double dim, double mut): FixedStepClone(type, fwd, back, step, mut){
+    dim_rate = dim;
+}
+
+bool FixedDimReturnsClone::readLine(vector<string>& parsed_line){
+    //full line syntax: Clone FixedDimReturns [type_id] [num_cells] [fit_class] [step_size] [fwd_prob] [back_prob] [dim_rate] [mut_rate]
+    try{
+        dim_rate = stod(parsed_line[5]);
+        parsed_line.erase(parsed_line.begin() + 5);
+    }
+    catch (...){
+        return false;
+    }
+    return FixedStepClone::readLine(parsed_line) && checkRep();
+}
+
+void FixedDimReturnsClone::reproduce(){
+    double curr_fwd_prob = fwd_prob * exp(-dim_rate * cell_type->getPopulation().getCurrTime());
+    double curr_back_prob = back_prob * exp(-dim_rate * cell_type->getPopulation().getCurrTime());
+    
+    uniform_real_distribution<double> runif;
+    double fit_move = runif(*eng);
+    int old_fit_class = chooseReproducer();
+    int new_fit_class = old_fit_class;
+    if (fit_move < curr_fwd_prob){
+        new_fit_class ++;
+    }
+    else if (fit_move < curr_fwd_prob + curr_back_prob){
+        new_fit_class = max(0, new_fit_class-1);
+    }
+    removeOneCell(old_fit_class);
+    
+    if (runif(*eng) < mut_prob){
+        MutationHandler& mut_handle = cell_type->getMutHandler();
+        mut_handle.generateMutant(*cell_type, birth_rate, mut_prob);
+        int mut_fit_class = round(mut_handle.getNewBirthRate()/step_size);
+        FixedDimReturnsClone *new_node = new FixedDimReturnsClone(mut_handle.getNewType(), fwd_prob, back_prob, step_size, dim_rate, mut_handle.getNewMutProb());
+        new_node->addCells(1, mut_fit_class);
+        mut_handle.getNewType().insertClone(*new_node);
+        addCells(1, new_fit_class);
+    }
+    else{
+        addCells(2, new_fit_class);
+    }
 }

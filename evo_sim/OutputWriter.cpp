@@ -61,7 +61,7 @@ bool DuringOutputWriter::shouldWrite(CList& clone_list){
 }
 
 TypeStructureWriter::TypeStructureWriter(string ofile):OutputWriter(ofile), FinalOutputWriter(ofile){
-    ofile_name = "type_tree.oevo";
+    ofile_name = "_type_tree.oevo";
 }
 
 void TypeStructureWriter::beginAction(CList &clone_list){
@@ -444,12 +444,12 @@ IfTypeWriter::~IfTypeWriter(){
 }
 
 FitnessDistWriter::FitnessDistWriter(string ofile, int period, int i, int sim):OutputWriter(ofile), IndexedWriter(ofile, i), DuringOutputWriter(ofile, period){
-    ofile_name = "type_" + to_string(i) + ".oevo";
+    ofile_name = "_type_" + to_string(i) + ".oevo";
     sim_number = sim;
 }
 
 MeanFitWriter::MeanFitWriter(string ofile, int period, int i, int sim):OutputWriter(ofile), IndexedWriter(ofile, i), DuringOutputWriter(ofile, period){
-    ofile_name = "type_" + to_string(i) + ".oevo";
+    ofile_name = "_type_" + to_string(i) + ".oevo";
     sim_number = sim;
 }
 
@@ -498,7 +498,7 @@ bool FitnessDistWriter::readLine(vector<string>& parsed_line){
     catch (...){
         return false;
     }
-    ofile_name = "type_" + to_string(index) + ".oevo";
+    ofile_name = "_type_" + to_string(index) + ".oevo";
     return true;
 }
 
@@ -553,10 +553,7 @@ AllTypesWideWriter::~AllTypesWideWriter(){
 void FitnessDistWriter::write_dist(ofstream& outfile, CList& clone_list){
     Clone *curr_clone = (clone_list.getTypeByIndex(index)->getRoot());
     while (curr_clone){
-        int num_cells = curr_clone->getCellCount();
-        for (int i=0; i<num_cells; i++){
-            outfile << ", " << curr_clone->getBirthRate();
-        }
+        curr_clone->writeBirthRate(outfile);
         curr_clone = &(curr_clone->getNextWithinType());
     }
 }

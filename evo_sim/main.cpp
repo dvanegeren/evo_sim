@@ -197,6 +197,7 @@ CellType::CellType(int i, CellType *parent_type){
     next_node = NULL;
     has_death_rate = false;
     death = 0.0;
+    mutation_effect = 0;
 }
 
 void CellType::setDeathRate(double death_rate){
@@ -239,7 +240,7 @@ void CellType::addChild(CellType &child_type){
 
 void CellType::addCells(int num, double b){
     num_cells += num;
-    total_birth_rate += b*num;
+    total_birth_rate += b;
     
     clone_list->addCells(num, b);
 }
@@ -268,7 +269,7 @@ MutationHandler& CellType::getMutHandler(){
 }
 
 void CellType::insertClone(Clone &new_clone){
-    addCells(new_clone.getCellCount(), new_clone.getBirthRate());
+    addCells(new_clone.getCellCount(), new_clone.getTotalBirth());
     if (!root_node){
         root_node = &new_clone;
         end_node = &new_clone;
@@ -968,6 +969,44 @@ bool SimParams::make_clone(vector<string> &parsed_line){
             }
             new_type->insertClone(*new_clone);
         }
+    }
+    else if (type == "FixedStep"){
+        if (parsed_line.size() < 6){
+            err_type = "bad params for FixedStepClone";
+            return false;
+        }
+        Clone *new_clone;
+        if (*model_type == "moran"){
+            err_type = "FixedStepClone incompatible with Moran model";
+            return false;
+        }
+        else{
+            new_clone = new FixedStepClone(*new_type);
+        }
+        if (!new_clone->readLine(parsed_line)){
+            err_type = "bad clone";
+            return false;
+        }
+        new_type->insertClone(*new_clone);
+    }
+    else if (type == "FixedDimReturns"){
+        if (parsed_line.size() < 7){
+            err_type = "bad params for FixedDimReturnsClone";
+            return false;
+        }
+        Clone *new_clone;
+        if (*model_type == "moran"){
+            err_type = "FixedStepClone incompatible with Moran model";
+            return false;
+        }
+        else{
+            new_clone = new FixedDimReturnsClone(*new_type);
+        }
+        if (!new_clone->readLine(parsed_line)){
+            err_type = "bad clone";
+            return false;
+        }
+        new_type->insertClone(*new_clone);
     }
     else if (type == "TypeEmpiric"){
         if (parsed_line.size() < 5){

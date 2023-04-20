@@ -75,6 +75,7 @@ private:
     int num_cells;
     double total_birth_rate;
     int phylogeny_depth;
+    double mutation_effect;
     void unlinkType();
     void setNext(CellType& next){
         next_node = &next;
@@ -89,10 +90,6 @@ private:
     void setEnd(Clone& new_end){
         end_node = &new_end;
     }
-    // called every time a cell of this type is born
-    void addCells(int num, double b);
-    // called every time a cell of this type dies
-    void subtractOneCell(double b);
     void setCloneList(CList& clist){
         clone_list = &clist;
     }
@@ -119,6 +116,12 @@ public:
     }
     CellType* getParent(){
         return parent;
+    }
+    void setMutEffect(double mut_effect){
+        mutation_effect = mut_effect;
+    }
+    double getMutEffect(){
+        return mutation_effect;
     }
     void setParent(CellType *parent_type){
         parent = parent_type;
@@ -167,6 +170,12 @@ public:
         return empirical_dist.size();
     }
     void setDeathRate(double death_rate);
+    
+    // called every time a cell of this type is born
+    // b is TOTAL birth rate
+    void addCells(int num, double b);
+    // called every time a cell of this type dies
+    void subtractOneCell(double b);
 };
 
 class EndListener{

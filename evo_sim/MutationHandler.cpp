@@ -164,7 +164,9 @@ void DimReturnsUnifMutation::generateMutant(CellType& type, double b, double mut
     else{
         uniform_real_distribution<double> runif;
         new_type = getNewTypeByIndex(type.getPopulation().getNextType(), type);
-        birth_rate = b + runif(*eng) * max_gain * pow(dim_rate, type.getDepth());
+        double offset = runif(*eng) * max_gain * pow(dim_rate, type.getDepth());
+        new_type->setMutEffect(offset);
+        birth_rate = b + offset;
         mut_prob = mut;
     }
     has_mutated = true;

@@ -263,7 +263,7 @@ int CList::getNextType(){
 }
 
 void CList::addCells(int num_cells, double b){
-    tot_rate += b * num_cells;
+    tot_rate += b;
     tot_cell_count += num_cells;
 }
 
@@ -293,7 +293,7 @@ void CList::walkTypesAndWrite(ofstream& outfile, CellType& root){
 void CList::walkTypesAndWrite(ofstream& outfile, CellType& root){
     for (int i=0; i<max_types; i++){
         if (hasCellType(i)){
-            outfile << i << ", " << getTypeByIndex(i)->getNumCells() << ", ";
+            outfile << i << ", " << getTypeByIndex(i)->getNumCells() << ", " << getTypeByIndex(i)->getMutEffect() << ", ";
             if (getTypeByIndex(i)->getParent()){
                 outfile << getTypeByIndex(i)->getParent()->getIndex() << endl;
             }
