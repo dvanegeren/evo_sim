@@ -40,6 +40,13 @@ Clone::~Clone(){
     }
 }
 
+FixedStepClone::~FixedStepClone(){
+    birth_rate = 0;
+    for (auto it = fit_to_num.begin(); it != fit_to_num.end(); it++){
+        birth_rate += it->second * it->first * step_size;
+    }
+}
+
 Clone* Clone::getNextClone(){
     if (!next_node){
         if (!cell_type->getNext()){

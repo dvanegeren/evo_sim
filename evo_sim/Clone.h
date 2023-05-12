@@ -336,6 +336,7 @@ protected:
 public:
     FixedStepClone(CellType& type, double fwd, double back, double step, double mut);
     FixedStepClone(CellType& type);
+    virtual ~FixedStepClone();
     void reproduce();
     bool readLine(vector<string>& parsed_line);
     void removeOneCell();
