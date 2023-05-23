@@ -333,7 +333,7 @@ TypeEmpiricClone::TypeEmpiricClone(CellType& type, double mu, double sig, double
 
 void Clone::addCells(int num_cells){
     cell_count+=num_cells;
-    cell_type->addCells(num_cells, getTotalBirth());
+    cell_type->addCells(num_cells, birth_rate*num_cells);
 }
 
 double StochClone::drawLogNorm(double mean, double var){
@@ -1237,7 +1237,7 @@ void FixedStepClone::reproduce(){
         mut_handle.generateMutant(*cell_type, birth_rate, mut_prob);
         int mut_fit_class = round(mut_handle.getNewBirthRate()/step_size);
         FixedStepClone *new_node = new FixedStepClone(mut_handle.getNewType(), fwd_prob, back_prob, step_size, mut_handle.getNewMutProb());
-        new_node->addCells(1, mut_fit_class);
+        new_node->insertCellsOnly(1, mut_fit_class);
         mut_handle.getNewType().insertClone(*new_node);
         addCells(1, new_fit_class);
     }
@@ -1314,7 +1314,7 @@ void FixedDimReturnsClone::reproduce(){
         mut_handle.generateMutant(*cell_type, birth_rate, mut_prob);
         int mut_fit_class = round(mut_handle.getNewBirthRate()/step_size);
         FixedDimReturnsClone *new_node = new FixedDimReturnsClone(mut_handle.getNewType(), fwd_prob, back_prob, step_size, dim_rate, mut_handle.getNewMutProb());
-        new_node->addCells(1, mut_fit_class);
+        new_node->insertCellsOnly(1, mut_fit_class);
         mut_handle.getNewType().insertClone(*new_node);
         addCells(1, new_fit_class);
     }
