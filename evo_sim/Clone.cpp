@@ -1234,7 +1234,7 @@ void FixedStepClone::reproduce(){
     
     if (runif(*eng) < mut_prob){
         MutationHandler& mut_handle = cell_type->getMutHandler();
-        mut_handle.generateMutant(*cell_type, birth_rate, mut_prob);
+        mut_handle.generateMutant(*cell_type, new_fit_class*step_size, mut_prob);
         int mut_fit_class = round(mut_handle.getNewBirthRate()/step_size);
         FixedStepClone *new_node = new FixedStepClone(mut_handle.getNewType(), fwd_prob, back_prob, step_size, mut_handle.getNewMutProb());
         new_node->insertCellsOnly(1, mut_fit_class);
@@ -1311,7 +1311,7 @@ void FixedDimReturnsClone::reproduce(){
     
     if (runif(*eng) < mut_prob){
         MutationHandler& mut_handle = cell_type->getMutHandler();
-        mut_handle.generateMutant(*cell_type, birth_rate, mut_prob);
+        mut_handle.generateMutant(*cell_type, new_fit_class*step_size, mut_prob);
         int mut_fit_class = round(mut_handle.getNewBirthRate()/step_size);
         FixedDimReturnsClone *new_node = new FixedDimReturnsClone(mut_handle.getNewType(), fwd_prob, back_prob, step_size, dim_rate, mut_handle.getNewMutProb());
         new_node->insertCellsOnly(1, mut_fit_class);
