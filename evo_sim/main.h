@@ -135,6 +135,9 @@ public:
     int getDepth(){
         return phylogeny_depth;
     }
+    void setDepth(int new_depth){
+        phylogeny_depth = new_depth;
+    }
     int getNumCells(){
         return num_cells;
     }

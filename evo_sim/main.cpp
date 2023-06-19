@@ -744,15 +744,31 @@ bool SimParams::make_clone(vector<string> &parsed_line){
     }
     string type = parsed_line[0];
     parsed_line.erase(parsed_line.begin());
-    int type_id =stoi(parsed_line[0]);
-    int num_cells =stoi(parsed_line[1]);
     
+    string pre;
+    string post;
+    int type_id;
+    int new_depth;
+    string tok = parsed_line[0];
+    stringstream ss;
+    ss.str(tok);
+    getline(ss, pre, ',');
+    if (!getline(ss, post)){
+        type_id = stoi(parsed_line[0]);
+        new_depth = 0;
+    }
+    else{
+        type_id = stoi(pre);
+        new_depth = stoi(post);
+    }
     if (clone_list->getTypeByIndex(type_id)){
         err_type = "type space conflict";
         return false;
     }
-    
     CellType *new_type = new CellType(type_id, NULL);
+    new_type->setDepth(new_depth);
+    
+    int num_cells =stoi(parsed_line[1]);
     
     clone_list->addRootType(*new_type);
     clone_list->insertCellType(*new_type);
