@@ -76,9 +76,12 @@ TypeStructureWriter::~TypeStructureWriter(){
 
 void TypeStructureWriter::finalAction(CList& clone_list){
     std::vector<CellType *> roots = clone_list.getRootTypes();
+    clone_list.walkTypesAndWrite(outfile, *roots[i]);
+    /*
     for (int i=0; i<int(roots.size()); i++){
         clone_list.walkTypesAndWrite(outfile, *roots[i]);
     }
+     */
     outfile.flush();
     outfile.close();
     sim_number++;
