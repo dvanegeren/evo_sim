@@ -158,7 +158,7 @@ public:
         return num_types == max_types;
     }
     
-    void walkTypesAndWrite(ofstream& outfile, CellType& root);
+    void walkTypesAndWrite(ofstream& outfile);
     
     virtual bool handle_line(vector<string>& parsed_line);
     
