@@ -1098,6 +1098,9 @@ bool SimParams::make_mut_handler(){
     else if (mut_type == "None"){
         mut_handler = new NoMutation();
     }
+    else if (mut_type == "ParamDist"){
+        mut_handler = new ParamDistMutation();
+    }
     else if (mut_type == "ThreeTypesFlex"){
         mut_handler = new ThreeTypesFlexMutation();
     }

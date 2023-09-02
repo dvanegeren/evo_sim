@@ -180,4 +180,22 @@ public:
     bool read(std::vector<string>& params);
 };
 
+class ParamDistMutation: public MutationHandler{
+private:
+    double drawLogNorm(double mean, double var);
+    double drawNorm(double mean, double var);
+    double drawGamma(double mean, double var);
+    double drawDoubleExp(double mean, double var);
+    double drawUnif(double low, double high);
+    double param1;
+    double param2;
+    double zero_prob;
+    bool is_fixed;
+    string dist_type;
+public:
+    ParamDistMutation();
+    void generateMutant(CellType& type, double b, double mut);
+    bool read(std::vector<string>& params);
+};
+
 #endif /* MutationHandler_h */

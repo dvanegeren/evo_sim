@@ -451,6 +451,147 @@ void FixedSitesMutation::generateMutant(CellType &type, double b, double mut){
     has_mutated = true;
 }
 
+ParamDistMutation::ParamDistMutation() : MutationHandler(){
+    param1 = 0;
+    param2 = 0;
+    dist_type = "";
+    is_fixed = false;
+    zero_prob = 0;
+}
+
+bool ParamDistMutation::read(std::vector<string>& params){
+    
+    string pre;
+    string post;
+    bool is_param1 = false;
+    bool is_param2 = false;
+    bool is_type = false;
+    bool is_fixed_read = false;
+    for (int i=0; i<int(params.size()); i++){
+        string tok = params[i];
+        stringstream ss;
+        ss.str(tok);
+        getline(ss, pre, ',');
+        if (!getline(ss, post)){
+            return false;
+        }
+        if (pre=="mean" || pre=="low"){
+            is_param1 = true;
+            param1 = stod(post);
+        }
+        else if (pre=="var" || pre=="high"){
+            is_param2 = true;
+            param2 = stod(post);
+        }
+        else if (pre=="type"){
+            is_type = true;
+            dist_type = post;
+        }
+        else if (pre=="fixed"){
+            is_fixed_read = true;
+            is_fixed = (post == "true");
+        }
+        else if (pre=="zero"){
+            zero_prob = stod(post);
+        }
+        else{
+            return false;
+        }
+    }
+    if (!is_param1 || !is_param2 || !is_type || !is_fixed_read){
+        return false;
+    }
+    else if (dist_type == "lognorm" || dist_type == "norm" || dist_type == "gamma" || dist_type == "doubleexp"){
+        if (param2 <= 0){
+            return false;
+        }
+    }
+    return true;
+}
+
+void ParamDistMutation::generateMutant(CellType& type, double b, double mut){
+    if (type.getPopulation().noTypesLeft()){
+        throw "tried to get new type when no types left";
+    }
+    else{
+        new_type = getNewTypeByIndex(type.getPopulation().getNextType(), type);
+    }
+    mut_prob = mut;
+    double drawn;
+    if (dist_type == "lognorm"){
+        drawn = drawLogNorm(param1, param2);
+    }
+    else if (dist_type == "norm"){
+        drawn = drawNorm(param1, param2);
+    }
+    else if (dist_type == "gamma"){
+        drawn = drawGamma(param1, param2);
+    }
+    else if (dist_type == "doubleexp"){
+        drawn = drawDoubleExp(param1, param2);
+    }
+    else if (dist_type == "unif"){
+        drawn = drawUnif(param1, param2);
+    }
+    else{
+        throw "bad dist type";
+    }
+    
+    if (is_fixed){
+        birth_rate = drawn;
+    }
+    else{
+        birth_rate = b + drawn;
+    }
+    
+    uniform_real_distribution<double> runif;
+    if (birth_rate < 0 || runif(*eng) < zero_prob){
+        birth_rate = 0;
+    }
+    new_type->setMutEffect(birth_rate - b);
+    has_mutated = true;
+}
+
+double ParamDistMutation::drawLogNorm(double mean, double var){
+    double loc = log(pow(mean, 2.0)/sqrt(var+pow(mean,2.0)));
+    double scale = sqrt(log(1.0+var/pow(mean,2.0)));
+    normal_distribution<double> norm(loc, scale);
+    double to_return = exp(norm(*eng));
+    return to_return;
+}
+
+double ParamDistMutation::drawNorm(double mean, double var){
+    normal_distribution<double> norm(mean, sqrt(var));
+    double to_return = exp(norm(*eng));
+    return to_return;
+}
+
+double ParamDistMutation::drawDoubleExp(double mean, double var){
+    double lambda = 1.0/sqrt(var/2.0);
+    exponential_distribution<double> expo(lambda);
+    std::bernoulli_distribution bern(0.5);
+    double to_return = expo(*eng);
+    if (bern(*eng)){
+        to_return = -to_return;
+    }
+    to_return += mean;
+    return to_return;
+}
+
+double ParamDistMutation::drawGamma(double mean, double var){
+    double beta = var/mean;
+    double alpha = mean/beta;
+    std::gamma_distribution<double> gam(alpha,beta);
+    double to_return = gam(*eng);
+    return to_return;
+}
+
+double ParamDistMutation::drawUnif(double low, double high){
+    uniform_real_distribution<double> runif;
+    double to_return = runif(*eng) * (high-low) + low;
+    return to_return;
+}
+
 SexReprMutation::SexReprMutation() : MutationHandler(){}
 
 FathersCurseMutation::FathersCurseMutation() : SexReprMutation(){
