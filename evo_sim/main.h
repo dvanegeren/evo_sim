@@ -144,6 +144,11 @@ public:
     double getBirthRate(){
         return total_birth_rate;
     }
+    
+    double getMeanBirthRate(){
+        return total_birth_rate/num_cells;
+    }
+    
     double getDeathRate();
 
     CellType* getNext(){

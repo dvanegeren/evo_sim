@@ -293,7 +293,7 @@ void CList::walkTypesAndWrite(ofstream& outfile, CellType& root){
 void CList::walkTypesAndWrite(ofstream& outfile){
     for (int i=0; i<max_types; i++){
         if (hasCellType(i)){
-            outfile << i << ", " << getTypeByIndex(i)->getNumCells() << ", " << getTypeByIndex(i)->getMutEffect() << ", " << getTypeByIndex(i)->getDepth() << ", ";
+            outfile << i << ", " << getTypeByIndex(i)->getNumCells() << ", " << getTypeByIndex(i)->getMutEffect() << ", " << getTypeByIndex(i)->getMeanBirthRate() << ", " << getTypeByIndex(i)->getDepth() << ", ";
             if (getTypeByIndex(i)->getParent()){
                 outfile << getTypeByIndex(i)->getParent()->getIndex() << endl;
             }
